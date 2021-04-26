@@ -1,0 +1,3 @@
+osiris-sdk
+requests
+python-dateutil
