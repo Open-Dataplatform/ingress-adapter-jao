@@ -238,7 +238,7 @@ class JaoAdapter(IngressAdapter):
                 monthly_datetime_obj += relativedelta(months=+1)
 
         print(state)
-        print(responses)
+        print(json.dumps(responses))
         state.save_state()
         return json.dumps(responses).encode('utf_8')
 
