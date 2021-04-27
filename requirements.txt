@@ -1,3 +1,4 @@
 osiris-sdk
 requests
 python-dateutil
+osiris
