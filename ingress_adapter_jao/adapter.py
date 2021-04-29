@@ -1,15 +1,17 @@
 """
 JAO Adapter for Ingress.
 """
-import configparser
 import json
 from datetime import datetime
 import requests
 
 from dateutil.relativedelta import relativedelta
 from osiris.adapters.ingress_adapter import IngressAdapter
-from osiris.apis.egress import Egress
-from osiris.apis.ingress import Ingress
+
+from configuration import Configuration
+
+configuration = Configuration(__file__)
+logger = configuration.get_logger()
 
 
 class JaoClient:
@@ -50,6 +52,9 @@ class JaoClient:
         :param to_date: The end date (optional).
         :return: Returns the actions as JSON.
         """
+        if to_date:
+            raise Exception("to_date argument not used")
+
         response = requests.get(
             url=f'{self.jao_url}/getauctions',
             params={'corridor': corridor, 'fromdate': from_date, 'horizon': 'Monthly'},
@@ -66,6 +71,9 @@ class JaoClient:
         :param to_date: The end date (optional).
         :return: Returns the curtailments as JSON.
         """
+        if to_date:
+            raise Exception("to_date argument not used")
+
         response = requests.get(
             url=f'{self.jao_url}/getcurtailment',
             params={'corridor': corridor, 'fromdate': from_date},
@@ -93,8 +101,8 @@ class CorridorState:
     Corridor State is used to get the state, store the state, and update the state.
     The state saves the LastSuccessfulMonthlyDate for each corridor.
     """
-    def __init__(self, ingress, egress, default_date):
-        json_content = egress.retrieve_state()
+    def __init__(self, ingress, default_date):
+        json_content = ingress.retrieve_state()
         self.state = json_content['LastUpdates']
 
         self.ingress = ingress
@@ -153,42 +161,6 @@ def filter_corridors(corridors, filters):
     return result
 
 
-class ConfigurationParser:
-    """
-    Class used to only parse the configuration file once.
-    """
-    def __init__(self):
-        config = configparser.ConfigParser()
-        config.read(['../conf.ini', '/etc/osiris/conf.ini', '/etc/transform-ingress2event-time-conf.ini'])
-        self.jao_url = config['JAO Server']['server_url']
-        self.auth_api_key = config['JAO Server']['auth_api_key']
-
-        self.egress_url = config['Azure Storage']['egress_url']
-        self.ingress_url = config['Azure Storage']['ingress_url']
-        self.tenant_id = config['Authorization']['tenant_id']
-        self.client_id = config['Authorization']['client_id']
-        self.client_secret = config['Authorization']['client_secret']
-        self.dataset_guid = config['Datasets']['source']
-        self.default_value = config['JAO Values']['default_date']
-
-        self.egress = Egress(self.egress_url, self.tenant_id, self.client_id, self.client_secret, self.dataset_guid)
-        self.ingress = Ingress(self.ingress_url, self.tenant_id, self.client_id, self.client_secret, self.dataset_guid)
-
-    def get_egress(self):
-        """
-        Returns the Egress
-        :return:
-        """
-        return self.egress
-
-    def get_ingress(self):
-        """
-        Returns the Ingress
-        :return:
-        """
-        return self.ingress
-
-
 class JaoAdapter(IngressAdapter):
     """
     The JAO Adapter.
@@ -199,14 +171,13 @@ class JaoAdapter(IngressAdapter):
         Retrives the data from JAO based on the state and returns it.
         :return:
         """
+        logger.info('Running the JAO Ingress Adapter')
+
         current_date = datetime.utcnow()
 
-        config = ConfigurationParser()
+        state = CorridorState(configuration.get_ingress(), configuration.default_value)
 
-        state = CorridorState(config.get_ingress(), config.get_egress(), config.default_value)
-        print(state)
-
-        client = JaoClient(config.jao_url, config.auth_api_key)
+        client = JaoClient(configuration.jao_url, configuration.auth_api_key)
 
         corridors = client.get_corridors()
         corridors = [corridor['value'] for corridor in corridors]
@@ -221,25 +192,24 @@ class JaoAdapter(IngressAdapter):
             monthly_datetime_obj = datetime.strptime(monthly_date, '%Y-%m-%d')
 
             while monthly_datetime_obj < current_date:
-
-                print("Fetching", corridor, monthly_datetime_obj.strftime("%Y-%m-%d"))
+                logger.debug('Retrieving corridor: %s for %s', corridor, monthly_datetime_obj.strftime("%Y-%m-%d"))
 
                 response = client.get_auctions(corridor, monthly_datetime_obj.strftime("%Y-%m-%d"))
                 if isinstance(response, dict):
+                    # The challenge is, that bad request can be: no data available.
                     # Bad response
-                    print(response['status'], response['message'])
+                    logger.info("Got response %s with message %s", response['status'], response['message'])
                     # Log error retrieve - but continue - maybe next dataset is fine
                 else:
-                    # Good response
-                    print(response)
-                    responses.append({'corridor': corridor, 'from_date': monthly_datetime_obj.strftime("%Y-%m-%d"),'response': response})
+                    # Good response: Means that there is data
+                    responses.append({'corridor': corridor, 'from_date': monthly_datetime_obj.strftime("%Y-%m-%d"),
+                                      'response': response})
                     state.set_last_successful_monthly_date(corridor, monthly_datetime_obj.strftime("%Y-%m-%d"))
 
                 monthly_datetime_obj += relativedelta(months=+1)
 
-        print(state)
-        print(json.dumps(responses))
         state.save_state()
+        logger.info('Save state and return response data')
         return json.dumps(responses).encode('utf_8')
 
 
@@ -247,13 +217,13 @@ def ingest_jao_auctions_data():
     """
     Setups the adapter and runs it.
     """
-    config = ConfigurationParser()
+    config = configuration.get_config()
 
-    adapter = JaoAdapter(config.ingress_url,
-                         config.tenant_id,
-                         config.client_id,
-                         config.client_secret,
-                         config.dataset_guid)
+    adapter = JaoAdapter(config['Azure Storage']['ingress_url'],
+                         config['Authorization']['tenant_id'],
+                         config['Authorization']['client_id'],
+                         config['Authorization']['client_secret'],
+                         config['Datasets']['source'])
 
     adapter.upload_json_data(False)
 
