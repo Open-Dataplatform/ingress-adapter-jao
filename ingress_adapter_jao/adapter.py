@@ -8,7 +8,7 @@ import requests
 from dateutil.relativedelta import relativedelta
 from osiris.adapters.ingress_adapter import IngressAdapter
 
-from configuration import Configuration
+from .configuration import Configuration
 
 configuration = Configuration(__file__)
 logger = configuration.get_logger()

@@ -14,7 +14,7 @@ class Configuration:
     def __init__(self, name: str):
         self.name = name
         self.config = configparser.ConfigParser()
-        self.config.read(['../conf.ini', '/etc/osiris/conf.ini', '/etc/transform-ingress2event-time-conf.ini'])
+        self.config.read(['conf.ini', '/etc/osiris/conf.ini', '/etc/ingress-adapter-jao-conf.ini'])
         self.jao_url = self.config['JAO Server']['server_url']
         self.auth_api_key = self.config['JAO Server']['auth_api_key']
 
