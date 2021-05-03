@@ -218,11 +218,12 @@ def ingest_jao_auctions_data():
     Setups the adapter and runs it.
     """
     config = configuration.get_config()
+    credentials_config = configuration.get_credentials_config()
 
     adapter = JaoAdapter(config['Azure Storage']['ingress_url'],
-                         config['Authorization']['tenant_id'],
-                         config['Authorization']['client_id'],
-                         config['Authorization']['client_secret'],
+                         credentials_config['Authorization']['tenant_id'],
+                         credentials_config['Authorization']['client_id'],
+                         credentials_config['Authorization']['client_secret'],
                          config['Datasets']['source'])
 
     adapter.upload_json_data(False)

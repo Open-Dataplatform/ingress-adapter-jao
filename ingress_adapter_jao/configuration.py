@@ -50,3 +50,9 @@ class Configuration:
         The configuration for the application.
         """
         return self.config
+
+    def get_credentials_config(self):
+        """
+        The credentials configuration for the application.
+        """
+        return self.credentials_config
