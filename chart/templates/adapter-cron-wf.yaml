@@ -20,4 +20,4 @@ spec:
         - name: ingress-adapter-jao
           templateRef:
             name: {{ .Values.appName }}-wf-tp
-            template: adapter
+            template: ingress
