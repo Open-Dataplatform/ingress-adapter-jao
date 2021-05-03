@@ -15,13 +15,17 @@ class Configuration:
         self.name = name
         self.config = configparser.ConfigParser()
         self.config.read(['conf.ini', '/etc/osiris/conf.ini', '/etc/ingress-adapter-jao-conf.ini'])
+
+        self.credentials_config = configparser.ConfigParser()
+        self.credentials_config.read(['credentials.ini', '/vault/secrets/credentials.ini'])
+
         self.jao_url = self.config['JAO Server']['server_url']
-        self.auth_api_key = self.config['JAO Server']['auth_api_key']
+        self.auth_api_key = self.credentials_config['JAO Server']['auth_api_key']
 
         ingress_url = self.config['Azure Storage']['ingress_url']
-        tenant_id = self.config['Authorization']['tenant_id']
-        client_id = self.config['Authorization']['client_id']
-        client_secret = self.config['Authorization']['client_secret']
+        tenant_id = self.credentials_config['Authorization']['tenant_id']
+        client_id = self.credentials_config['Authorization']['client_id']
+        client_secret = self.credentials_config['Authorization']['client_secret']
         dataset_guid = self.config['Datasets']['source']
         self.default_value = self.config['JAO Values']['default_date']
 

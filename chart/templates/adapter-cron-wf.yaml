@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: CronWorkflow
+metadata:
+  name: {{ .Values.appName }}-cron-wf
+  namespace: argo
+  labels:
+    app: ingress-jao
+    component: adapter
+spec:
+  schedule: "{{ .Values.schedule }}"
+  concurrencyPolicy: "Allow"
+  failedJobsHistoryLimit: 1
+  successfulJobsHistoryLimit: 3
+  workflowSpec:
+    entrypoint: cron-tasks
+    templates:
+    - name: cron-tasks
+      dag:
+        tasks:
+        - name: ingress-adapter-jao
+          templateRef:
+            name: {{ .Values.appName }}-wf-tp
+            template: adapter
