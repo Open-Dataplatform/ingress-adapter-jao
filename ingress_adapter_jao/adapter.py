@@ -180,6 +180,7 @@ class JaoAdapter(IngressAdapter):
         client = JaoClient(configuration.jao_url, configuration.auth_api_key)
 
         corridors = client.get_corridors()
+        print(corridors)
         corridors = [corridor['value'] for corridor in corridors]
         corridors = filter_corridors(corridors, ['DK', 'D1', 'D2'])
 
