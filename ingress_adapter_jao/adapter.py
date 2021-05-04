@@ -180,12 +180,9 @@ class JaoAdapter(IngressAdapter):
         client = JaoClient(configuration.jao_url, configuration.auth_api_key)
 
         corridors = client.get_corridors()
-        print(corridors)
+
         corridors = [corridor['value'] for corridor in corridors]
         corridors = filter_corridors(corridors, ['DK', 'D1', 'D2'])
-
-        # for testing
-        # corridors = ['GB-NI', 'GB-IE', 'IF2-FR-GB', 'BE-DE', 'NL-NO', 'CH-FR']
 
         responses = []
         for corridor in corridors:
@@ -193,19 +190,21 @@ class JaoAdapter(IngressAdapter):
             monthly_datetime_obj = datetime.strptime(monthly_date, '%Y-%m-%d')
 
             while monthly_datetime_obj < current_date:
-                logger.debug('Retrieving corridor: %s for %s', corridor, monthly_datetime_obj.strftime("%Y-%m-%d"))
+                monthly_datetime_str = monthly_datetime_obj.strftime("%Y-%m-%d")
+                logger.debug('Retrieving corridor: %s for %s', corridor, monthly_datetime_str)
 
-                response = client.get_auctions(corridor, monthly_datetime_obj.strftime("%Y-%m-%d"))
+                response = client.get_auctions(corridor, monthly_datetime_str)
                 if isinstance(response, dict):
                     # The challenge is, that bad request can be: no data available.
                     # Bad response
+                    # - we ignore bad response, as it might not be a bad request, but just no data available
                     logger.info("Got response %s with message %s", response['status'], response['message'])
                     # Log error retrieve - but continue - maybe next dataset is fine
                 else:
                     # Good response: Means that there is data
-                    responses.append({'corridor': corridor, 'from_date': monthly_datetime_obj.strftime("%Y-%m-%d"),
+                    responses.append({'corridor': corridor, 'from_date': monthly_datetime_str,
                                       'response': response})
-                    state.set_last_successful_monthly_date(corridor, monthly_datetime_obj.strftime("%Y-%m-%d"))
+                    state.set_last_successful_monthly_date(corridor, monthly_datetime_str)
 
                 monthly_datetime_obj += relativedelta(months=+1)
 
