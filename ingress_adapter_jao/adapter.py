@@ -6,11 +6,13 @@ from datetime import datetime
 import requests
 
 from dateutil.relativedelta import relativedelta
+from osiris.apis.ingress import Ingress
+from osiris.core.configuration import ConfigurationWithCredentials
 from osiris.adapters.ingress_adapter import IngressAdapter
 
-from .configuration import Configuration
-
-configuration = Configuration(__file__)
+configuration = ConfigurationWithCredentials(__file__)
+config = configuration.get_config()
+credentials_config = configuration.get_credentials_config()
 logger = configuration.get_logger()
 
 
@@ -60,7 +62,12 @@ class JaoClient:
             params={'corridor': corridor, 'fromdate': from_date, 'horizon': 'Monthly'},
             headers={'AUTH_API_KEY': self.auth_api_key}
         )
-        return json.loads(response.content)
+        if response.status_code == 200:
+            return json.loads(response.content)
+        # The challenge is, that bad request can be: no data available.
+        # Bad response
+        # - we ignore bad response, as it might not be a bad request, but just no data available
+        return None
 
     def get_curtailment(self, corridor, from_date, to_date=None):
         """
@@ -121,6 +128,7 @@ class CorridorState:
         for item in self.state:
             if item['Corridor'] == corridor:
                 monthly_date = item['LastSuccessfulMonthlyDate']
+                return monthly_date.split('T')[0]
         return monthly_date.split('T')[0]
 
     def set_last_successful_monthly_date(self, corridor, monthly_date):
@@ -145,90 +153,97 @@ class CorridorState:
         self.ingress.save_state(json.dumps(state))
 
 
-def filter_corridors(corridors, filters):
-    """
-    Helper function used to filter the needed corridors.
-    :param corridors:
-    :param filters:
-    :return:
-    """
-    result = []
-    for corridor in corridors:
-        for filter_item in filters:
-            if filter_item in corridor:
-                result.append(corridor)
-                break
-    return result
-
-
 class JaoAdapter(IngressAdapter):
     """
     The JAO Adapter.
     Implements the retrieve_data method.
     """
+    def __init__(self, ingress_url: str,  # pylint: disable=too-many-arguments
+                 tenant_id: str,
+                 client_id: str,
+                 client_secret: str,
+                 dataset_guid: str,
+                 jao_server_url: str,
+                 jao_auth_api_key: str):
+        super().__init__(ingress_url, tenant_id, client_id, client_secret, dataset_guid)
+
+        default_value = config['JAO Values']['default_date']
+        ingress = Ingress(ingress_url,
+                          tenant_id,
+                          client_id,
+                          client_secret,
+                          dataset_guid)
+
+        self.state = CorridorState(ingress, default_value)
+
+        self.client = JaoClient(jao_server_url, jao_auth_api_key)
+
     def retrieve_data(self) -> bytes:
         """
         Retrives the data from JAO based on the state and returns it.
         :return:
         """
-        logger.info('Running the JAO Ingress Adapter')
+        logger.debug('Running the JAO Ingress Adapter')
 
         current_date = datetime.utcnow()
 
-        state = CorridorState(configuration.get_ingress(), configuration.default_value)
+        corridors_all = self.client.get_corridors()
 
-        client = JaoClient(configuration.jao_url, configuration.auth_api_key)
+        corridors_all = [corridor['value'] for corridor in corridors_all]
+        corridors = self.__filter_corridors(corridors_all, ['DK', 'D1', 'D2'])
 
-        corridors = client.get_corridors()
-
-        corridors = [corridor['value'] for corridor in corridors]
-        corridors = filter_corridors(corridors, ['DK', 'D1', 'D2'])
-
-        responses = []
+        all_corridor_actions = []
         for corridor in corridors:
-            monthly_date = state.get_last_successful_monthly_date(corridor)
+            monthly_date = self.state.get_last_successful_monthly_date(corridor)
             monthly_datetime_obj = datetime.strptime(monthly_date, '%Y-%m-%d')
 
             while monthly_datetime_obj < current_date:
                 monthly_datetime_str = monthly_datetime_obj.strftime("%Y-%m-%d")
                 logger.debug('Retrieving corridor: %s for %s', corridor, monthly_datetime_str)
 
-                response = client.get_auctions(corridor, monthly_datetime_str)
-                if isinstance(response, dict):
-                    # The challenge is, that bad request can be: no data available.
-                    # Bad response
-                    # - we ignore bad response, as it might not be a bad request, but just no data available
-                    logger.info("Got response %s with message %s", response['status'], response['message'])
-                    # Log error retrieve - but continue - maybe next dataset is fine
-                else:
-                    # Good response: Means that there is data
-                    responses.append({'corridor': corridor, 'from_date': monthly_datetime_str,
-                                      'response': response})
-                    state.set_last_successful_monthly_date(corridor, monthly_datetime_str)
+                auctions = self.client.get_auctions(corridor, monthly_datetime_str)
+                if auctions:
+                    all_corridor_actions.append({'corridor': corridor, 'from_date': monthly_datetime_str,
+                                                 'response': auctions})
+                    self.state.set_last_successful_monthly_date(corridor, monthly_datetime_str)
 
                 monthly_datetime_obj += relativedelta(months=+1)
 
-        state.save_state()
-        logger.info('Save state and return response data')
-        return json.dumps(responses).encode('utf_8')
+        self.state.save_state()
+        logger.debug('Save state and return response data')
+        return json.dumps(all_corridor_actions).encode('utf_8')
+
+    @staticmethod
+    def __filter_corridors(corridors, filters):
+        """
+        Helper function used to filter the needed corridors.
+        :param corridors:
+        :param filters:
+        :return:
+        """
+        result = []
+        for corridor in corridors:
+            for filter_item in filters:
+                if filter_item in corridor:
+                    result.append(corridor)
+                    break
+        return result
 
 
 def ingest_jao_auctions_data():
     """
     Setups the adapter and runs it.
     """
-    config = configuration.get_config()
-    credentials_config = configuration.get_credentials_config()
-
     adapter = JaoAdapter(config['Azure Storage']['ingress_url'],
                          credentials_config['Authorization']['tenant_id'],
                          credentials_config['Authorization']['client_id'],
                          credentials_config['Authorization']['client_secret'],
-                         config['Datasets']['source'])
+                         config['Datasets']['source'],
+                         config['JAO Server']['server_url'],
+                         credentials_config['JAO Server']['auth_api_key'])
 
     adapter.upload_json_data(False)
 
 
 if __name__ == "__main__":
-
     ingest_jao_auctions_data()
