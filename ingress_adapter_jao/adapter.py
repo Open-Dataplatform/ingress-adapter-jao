@@ -214,6 +214,10 @@ class JaoAdapter(IngressAdapter):
         return json.dumps(all_corridor_actions).encode('utf_8')
 
     @staticmethod
+    def get_filename() -> str:
+        return datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ') + '.json'
+
+    @staticmethod
     def __filter_corridors(corridors, filters):
         """
         Helper function used to filter the needed corridors.
