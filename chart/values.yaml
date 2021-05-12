@@ -4,6 +4,7 @@ image:
   repository: transform-ingress2event-time
   tag: latest
 schedule: "0 1 * * *"
+concurrencyPolicy: "Allow"
 config:
   conf.ini: |
     [Logging]
