@@ -17,6 +17,8 @@ spec:
         labels:
         - key: name
           value: {{ .Values.appName }}
+        - key: component
+          value: "adapter"
         - key: status
           value: "{{`{{status}}`}}"    # Argo variable in `labels`
         counter:
