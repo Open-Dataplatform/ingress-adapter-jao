@@ -9,6 +9,7 @@ from dateutil.relativedelta import relativedelta
 from osiris.apis.ingress import Ingress
 from osiris.core.configuration import ConfigurationWithCredentials
 from osiris.adapters.ingress_adapter import IngressAdapter
+from osiris.core.enums import TimeResolution
 
 configuration = ConfigurationWithCredentials(__file__)
 config = configuration.get_config()
@@ -20,9 +21,10 @@ class JaoClient:
     """
     JAO Client - Connects to the JAO API and provides the calls.
     """
-    def __init__(self, jao_url, auth_api_key):
+    def __init__(self, jao_url, auth_api_key, horizon):
         self.jao_url = jao_url
         self.auth_api_key = auth_api_key
+        self.horizon = horizon
 
     def get_horizons(self):
         """
@@ -59,7 +61,7 @@ class JaoClient:
 
         response = requests.get(
             url=f'{self.jao_url}/getauctions',
-            params={'corridor': corridor, 'fromdate': from_date, 'horizon': 'Monthly'},
+            params={'corridor': corridor, 'fromdate': from_date, 'horizon': self.horizon},
             headers={'AUTH_API_KEY': self.auth_api_key}
         )
         if response.status_code == 200:
@@ -108,11 +110,14 @@ class CorridorState:
     Corridor State is used to get the state, store the state, and update the state.
     The state saves the LastSuccessfulMonthlyDate for each corridor.
     """
-    def __init__(self, ingress, default_date):
-        json_content = ingress.retrieve_state()
-        self.state = json_content['LastUpdates']
+    def __init__(self, ingress, horizon, default_date):
+        if horizon not in ['Yearly', 'Monthly']:
+            raise ValueError('Horizon not valid value: Valid values are Yearly and Monthly')
+        self.json_content = ingress.retrieve_state()
+        self.state = self.json_content[horizon]
 
         self.ingress = ingress
+        self.horizon = horizon
         self.default_value = default_date
 
     def __str__(self):
@@ -149,8 +154,8 @@ class CorridorState:
         Saves the state.
         :return:
         """
-        state = {"LastUpdates": self.state}
-        self.ingress.save_state(json.dumps(state))
+        self.json_content[self.horizon] = self.state
+        self.ingress.save_state(json.dumps(self.json_content))
 
 
 class JaoAdapter(IngressAdapter):
@@ -168,15 +173,16 @@ class JaoAdapter(IngressAdapter):
         super().__init__(ingress_url, tenant_id, client_id, client_secret, dataset_guid)
 
         default_value = config['JAO Values']['default_date']
+        horizon = config['JAO Values']['horizon']
         ingress = Ingress(ingress_url,
                           tenant_id,
                           client_id,
                           client_secret,
                           dataset_guid)
 
-        self.state = CorridorState(ingress, default_value)
+        self.state = CorridorState(ingress, horizon, default_value)
 
-        self.client = JaoClient(jao_server_url, jao_auth_api_key)
+        self.client = JaoClient(jao_server_url, jao_auth_api_key, horizon)
 
     def retrieve_data(self) -> bytes:
         """
