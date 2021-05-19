@@ -1,4 +1,5 @@
 appName: osiris-ingress-adapter-jao
+secertName: osiris-ingress-adapter-ja
 environment: test
 image:
   repository: transform-ingress2event-time
