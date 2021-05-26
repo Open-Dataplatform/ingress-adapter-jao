@@ -9,7 +9,6 @@ from dateutil.relativedelta import relativedelta
 from osiris.apis.ingress import Ingress
 from osiris.core.configuration import ConfigurationWithCredentials
 from osiris.adapters.ingress_adapter import IngressAdapter
-from osiris.core.enums import TimeResolution
 
 configuration = ConfigurationWithCredentials(__file__)
 config = configuration.get_config()
