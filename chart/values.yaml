@@ -1,4 +1,5 @@
 appName: osiris-ingress-adapter-jao
+secretName: osiris-ingress-adapter-jao
 environment: test
 image:
   repository: transform-ingress2event-time
