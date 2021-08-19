@@ -8,6 +8,7 @@ import requests
 from dateutil.relativedelta import relativedelta
 from osiris.apis.ingress import Ingress
 from osiris.core.configuration import ConfigurationWithCredentials
+from osiris.core.azure_client_authorization import ClientAuthorization
 from osiris.adapters.ingress_adapter import IngressAdapter
 
 configuration = ConfigurationWithCredentials(__file__)
@@ -169,7 +170,8 @@ class JaoAdapter(IngressAdapter):
                  dataset_guid: str,
                  jao_server_url: str,
                  jao_auth_api_key: str):
-        super().__init__(ingress_url, tenant_id, client_id, client_secret, dataset_guid)
+        client_auth = ClientAuthorization(tenant_id, client_id, client_secret)
+        super().__init__(client_auth=client_auth, ingress_url=ingress_url, dataset_guid=dataset_guid)
 
         default_value = config['JAO Values']['default_date']
         horizon = config['JAO Values']['horizon']
