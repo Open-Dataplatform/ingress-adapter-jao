@@ -175,10 +175,9 @@ class JaoAdapter(IngressAdapter):
 
         default_value = config['JAO Values']['default_date']
         horizon = config['JAO Values']['horizon']
-        ingress = Ingress(ingress_url,
-                          tenant_id,
-                          client_id,
-                          client_secret,
+        client_auth = ClientAuthorization(tenant_id=tenant_id, client_id=client_id, client_secret=client_secret)
+        ingress = Ingress(client_auth,
+                          ingress_url,
                           dataset_guid)
 
         self.state = CorridorState(ingress, horizon, default_value)
@@ -216,9 +215,11 @@ class JaoAdapter(IngressAdapter):
 
                 monthly_datetime_obj += relativedelta(months=+1)
 
-        self.state.save_state()
         logger.debug('Save state and return response data')
         return json.dumps(all_corridor_actions).encode('utf_8')
+
+    def save_state(self):
+        self.state.save_state()
 
     @staticmethod
     def get_filename() -> str:
