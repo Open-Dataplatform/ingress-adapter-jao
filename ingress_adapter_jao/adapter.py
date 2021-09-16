@@ -155,7 +155,7 @@ class CorridorState:
         :return:
         """
         self.json_content[self.horizon] = self.state
-        self.ingress.save_state(json.dumps(self.json_content))
+        self.ingress.save_state(self.json_content)
 
 
 class JaoAdapter(IngressAdapter):
