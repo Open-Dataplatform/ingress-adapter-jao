@@ -225,6 +225,9 @@ class JaoAdapter(IngressAdapter):
     def get_filename() -> str:
         return datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ') + '.json'
 
+    def get_event_time(self) -> str:
+        pass
+
     @staticmethod
     def __filter_corridors(corridors, filters):
         """
