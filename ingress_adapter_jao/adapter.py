@@ -2,19 +2,18 @@
 JAO Adapter for Ingress.
 """
 import json
+from configparser import ConfigParser
 from datetime import datetime
+import logging
+import logging.config
 import requests
 
 from dateutil.relativedelta import relativedelta
 from osiris.apis.ingress import Ingress
-from osiris.core.configuration import ConfigurationWithCredentials
 from osiris.core.azure_client_authorization import ClientAuthorization
 from osiris.adapters.ingress_adapter import IngressAdapter
 
-configuration = ConfigurationWithCredentials(__file__)
-config = configuration.get_config()
-credentials_config = configuration.get_credentials_config()
-logger = configuration.get_logger()
+logger = logging.getLogger(__file__)
 
 
 class JaoClient:
@@ -169,12 +168,12 @@ class JaoAdapter(IngressAdapter):
                  client_secret: str,
                  dataset_guid: str,
                  jao_server_url: str,
-                 jao_auth_api_key: str):
+                 jao_auth_api_key: str,
+                 default_value: str,
+                 horizon: str):
         client_auth = ClientAuthorization(tenant_id, client_id, client_secret)
         super().__init__(client_auth=client_auth, ingress_url=ingress_url, dataset_guid=dataset_guid)
 
-        default_value = config['JAO Values']['default_date']
-        horizon = config['JAO Values']['horizon']
         client_auth = ClientAuthorization(tenant_id=tenant_id, client_id=client_id, client_secret=client_secret)
         ingress = Ingress(client_auth,
                           ingress_url,
@@ -249,15 +248,28 @@ def ingest_jao_auctions_data():
     """
     Setups the adapter and runs it.
     """
+    config = ConfigParser()
+    config.read(['conf.ini', '/etc/osiris/conf.ini'])
+    credentials_config = ConfigParser()
+    credentials_config.read(['credentials.ini', '/vault/secrets/credentials.ini'])
+
+    logging.config.fileConfig(fname=config['Logging']['configuration_file'],  # type: ignore
+                              disable_existing_loggers=False)
+
+    logger.info('Starting adapter')
     adapter = JaoAdapter(config['Azure Storage']['ingress_url'],
                          credentials_config['Authorization']['tenant_id'],
                          credentials_config['Authorization']['client_id'],
                          credentials_config['Authorization']['client_secret'],
                          config['Datasets']['source'],
                          config['JAO Server']['server_url'],
-                         credentials_config['JAO Server']['auth_api_key'])
+                         credentials_config['JAO Server']['auth_api_key'],
+                         config['JAO Values']['default_date'],
+                         config['JAO Values']['horizon'])
 
     adapter.upload_json_data(False)
+
+    logger.info('Uploaded data complete')
 
 
 if __name__ == "__main__":
