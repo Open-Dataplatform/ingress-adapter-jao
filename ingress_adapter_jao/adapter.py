@@ -280,6 +280,7 @@ def ingest_jao_auctions_data():
         disable_logger_labels = config['Logging']['disable_logger_labels'].splitlines()
         for logger_label in disable_logger_labels:
             logging.getLogger(logger_label).setLevel(logging.WARNING)
+
     logger.info('Starting adapter')
     adapter = JaoAdapter(config['Azure Storage']['ingress_url'],
                          credentials_config['Authorization']['tenant_id'],
