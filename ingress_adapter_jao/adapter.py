@@ -1,6 +1,7 @@
 """
 JAO Adapter for Ingress.
 """
+import argparse
 import json
 from configparser import ConfigParser
 from datetime import datetime
@@ -244,18 +245,41 @@ class JaoAdapter(IngressAdapter):
         return result
 
 
+def __init_argparse() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description='Ingress adapter for JAO')
+
+    parser.add_argument('--conf',
+                        nargs='+',
+                        default=['conf.ini', '/etc/osiris/conf.ini'],
+                        help='setting the configuration file')
+    parser.add_argument('--credentials',
+                        nargs='+',
+                        default=['credentials.ini', '/vault/secrets/credentials.ini'],
+                        help='setting the credential file')
+
+    return parser
+
+
 def ingest_jao_auctions_data():
     """
     Setups the adapter and runs it.
     """
+    arg_parser = __init_argparse()
+    args, _ = arg_parser.parse_known_args()
+
     config = ConfigParser()
-    config.read(['conf.ini', '/etc/osiris/conf.ini'])
+    config.read(args.conf)
     credentials_config = ConfigParser()
-    credentials_config.read(['credentials.ini', '/vault/secrets/credentials.ini'])
+    credentials_config.read(args.credentials)
 
     logging.config.fileConfig(fname=config['Logging']['configuration_file'],  # type: ignore
                               disable_existing_loggers=False)
 
+    # To disable azure INFO logging from Azure
+    if config.has_option('Logging', 'disable_logger_labels'):
+        disable_logger_labels = config['Logging']['disable_logger_labels'].splitlines()
+        for logger_label in disable_logger_labels:
+            logging.getLogger(logger_label).setLevel(logging.WARNING)
     logger.info('Starting adapter')
     adapter = JaoAdapter(config['Azure Storage']['ingress_url'],
                          credentials_config['Authorization']['tenant_id'],
