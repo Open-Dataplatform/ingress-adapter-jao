@@ -1,3 +1,9 @@
+[![Pylint](https://github.com/Open-Dataplatform/ingress-adapter-jao/actions/workflows/pylint.yml/badge.svg)](https://github.com/Open-Dataplatform/ingress-adapter-jao/actions/workflows/pylint.yml)
+[![Bandit](https://github.com/Open-Dataplatform/ingress-adapter-jao/actions/workflows/bandit.yml/badge.svg)](https://github.com/Open-Dataplatform/ingress-adapter-jao/actions/workflows/bandit.yml)
+[![Flake8](https://github.com/Open-Dataplatform/ingress-adapter-jao/actions/workflows/flake8.yml/badge.svg)](https://github.com/Open-Dataplatform/ingress-adapter-jao/actions/workflows/flake8.yml)
+[![Mypy](https://github.com/Open-Dataplatform/ingress-adapter-jao/actions/workflows/mypy.yml/badge.svg)](https://github.com/Open-Dataplatform/ingress-adapter-jao/actions/workflows/mypy.yml)
+[![Pytest](https://github.com/Open-Dataplatform/ingress-adapter-jao/actions/workflows/pytest.yml/badge.svg)](https://github.com/Open-Dataplatform/ingress-adapter-jao/actions/workflows/pytest.yml)
+
 # ingress-adapter-jao
 - [Introduction](#introduction)
 - [Configuration](#configuration)
@@ -15,14 +21,14 @@ It keeps a state of all the last successful retrieved corridors.
 
 ### Usage
 ```sh
-$ python -m ingress_adapter_jao.adapter  
+$ python -m ingress_adapter_jao.adapter
 ```
 
 ## Configuration
 
-The application needs a configuration file `conf.ini` (see `conf.example.ini`). 
-The configuration file must be placed in the root of the project or in the locations `/etc/osiris/conf.ini` or 
-`/etc/ingress-adapter-jao-conf.ini`. 
+The application needs a configuration file `conf.ini` (see `conf.example.ini`).
+The configuration file must be placed in the root of the project or in the locations `/etc/osiris/conf.ini` or
+`/etc/ingress-adapter-jao-conf.ini`.
 
 ```
 [Logging]
@@ -49,7 +55,7 @@ default_date = 2020-01-01
 ```
 
 ### Logging
-Logging can be controlled by defining handlers and formatters using [Logging Configuration](https://docs.python.org/3/library/logging.config.html) and specifically the [config fileformat](https://docs.python.org/3/library/logging.config.html#logging-config-fileformat). 
+Logging can be controlled by defining handlers and formatters using [Logging Configuration](https://docs.python.org/3/library/logging.config.html) and specifically the [config fileformat](https://docs.python.org/3/library/logging.config.html#logging-config-fileformat).
 The location of the log configuration file (`Logging.configuration_file`) must be defined in the configuration file of the application as mentioned above.
 
 Here is an example configuration:
@@ -86,7 +92,7 @@ format=%(levelname)s: %(name)s - %(message)s
 ```
 
 #### Grant access to the dataset
-The application must be granted read access to the ingress dataset and write-access to the egress dataset on 
+The application must be granted read access to the ingress dataset and write-access to the egress dataset on
 [the Data Platform](https://dataplatform.energinet.dk/).
 
 Add the application you created earlier, using the `<YOUR APP NAME>` name, to the read- and write-access lists.
